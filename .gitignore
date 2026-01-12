@@ -1,4 +1,4 @@
-venv/
+.python-version
 image-data/
 __pycache__/
 models/

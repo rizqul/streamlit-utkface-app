@@ -1,3 +1,6 @@
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
+
 import streamlit as st
 import torch
 from PIL import Image, ImageOps
@@ -9,7 +12,7 @@ st.write("""
 ### Upload facial image to get the classification of age, gender, and race
 """)
 
-model = load_model('./utkface_efficientnetv2_s_categorical_age.pth')
+model = load_model('./models/best_utkface_model.pth')
 
 uploaded_file = st.file_uploader('Upload an image', type=['jpeg', 'jpg', 'png'])
 
@@ -19,7 +22,6 @@ if uploaded_file is not None:
     
     col1, col2 = st.columns(2)
 
-    age_classes = ['0-4', '5-12', '13-19', '20-29', '30-39', '40-59', '60-79', '80+'] 
     gender_classes = ['Male', 'Female'] # Assuming 0 is Male, 1 is Female after sigmoid
     race_classes = ['White', 'Black', 'Asian', 'Indian', 'Others']
 
@@ -33,21 +35,20 @@ if uploaded_file is not None:
         image_tensor = transform(image).unsqueeze(0)
 
         with torch.no_grad():
-            age_logits, gender_logit, race_logits = model(image_tensor)
+            outputs = model(image_tensor)
 
-            age_probs = torch.softmax(age_logits, dim=1)
-            age_confidence, age_pred_idx = torch.max(age_probs, 1)
-            predicted_age = age_classes[age_pred_idx.item()]
+            raw_age = outputs['age'].item() * 100
+            predicted_age = int(round(raw_age))
             
-            gender_prob = torch.sigmoid(gender_logit)
+            gender_prob = torch.sigmoid(outputs['gender'])
             gender_confidence = gender_prob.item() if gender_prob.item() > 0.5 else 1 - gender_prob.item()
             predicted_gender = gender_classes[1] if gender_prob.item() > 0.5 else gender_classes[0]
 
-            race_probs = torch.softmax(race_logits, dim=1)
+            race_probs = torch.softmax(outputs['race'], dim=1)
             race_confidence, race_pred_idx = torch.max(race_probs, 1)
             predicted_race = race_classes[race_pred_idx.item()]
 
-        st.metric(label='Predicted Age Bracket', value=f"{predicted_age}", help=f"Confidence: {age_confidence.item()*100:.2f}%")
+        st.metric(label='Predicted Age Bracket', value=f"{predicted_age}")
         st.metric(label='Predicted Gender', value=f"{predicted_gender}", help=f"Confidence: {gender_confidence*100:.2f}%")
         st.metric(label='Predicted Race', value=f"{predicted_race}", help=f"Confidence: {race_confidence.item()*100:.2f}%")
             
