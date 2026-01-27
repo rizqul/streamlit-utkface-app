@@ -4,7 +4,7 @@ ssl._create_default_https_context = ssl._create_unverified_context
 import streamlit as st
 import torch
 from PIL import Image, ImageOps
-from utils import load_model, get_transform
+from utils import load_model, get_transform, crop_align
 
 st.title('Facial Classification App')
 
@@ -28,11 +28,16 @@ if uploaded_file is not None:
     with col1:
         st.image(image, caption='Uploaded image', use_container_width=True)
 
+        with  st.spinner('crop and align the face'):
+            processed_image = crop_align(image)
+        
+        st.image(processed_image, caption='Crop & align image', use_container_width=True )
+
     with col2:
         st.write('### Model Predictions')
 
         transform = get_transform()
-        image_tensor = transform(image).unsqueeze(0)
+        image_tensor = transform(processed_image).unsqueeze(0)
 
         with torch.no_grad():
             outputs = model(image_tensor)
